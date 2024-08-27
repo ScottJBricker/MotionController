@@ -28,7 +28,7 @@ This project uses the following third-party libraries, each with its own respect
 - **License:** GPL v3 or Commercial
 - **Description:** This library by Mike McCauley is available under either the GPL v3 or a commercial license. For open source use, the GPL v3 applies, which requires that you distribute your application's source code under the same license when distributing the application. For proprietary use, a commercial license must be obtained.
 
-For more details on these licenses, please see the `LICENSES.txt` file included with this project. Long licenses are stored in the `Long Licenses` directory.
+For more details on these licenses, please see the `LICENSES.txt` file included with this project. Extended licenses and any whom are not defined in `LICENSES.txt` are stored in the `Extended Licenses` directory.
 
 ### Source Code
 
