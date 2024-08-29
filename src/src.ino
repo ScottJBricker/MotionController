@@ -112,7 +112,8 @@ void loop(void) {
         #if (DEBUGGER_OVERRIDE)
           Serial.print("Normal commands\r\n");
         #endif
-        axisIndex = (encodedSequence >= 1 && encodedSequence <= 21) ? myController.getMotorAxis(atoi(cmdProcess.getParameter(3)) - 1) : 0; // For each of these commands, an axis must be specified as the 3rd argument.
+
+        axisIndex = (encodedSequence >= 1 && encodedSequence <= 21) ? myController.getMotorAxis(atoi(cmdProcess.getParameter(3))) - 1 : 0; // For each of these commands, an axis must be specified as the 3rd argument.
         if (!myController.motors[axisIndex])
           return; // short circuit to restart command handler (no motor obj instance when input validation said this axis should exist)
 

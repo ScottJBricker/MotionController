@@ -56,8 +56,8 @@ private:
   
 public:
 
-  uint8_t getMotorAxis(uint8_t controllerIndex) {
-    return this->motorAxis[controllerIndex];
+  uint8_t getMotorAxis(uint8_t controllerAxis) {
+    return this->motorAxis[controllerAxis - 1];
   }
 /*
   // Each device string identifier is separated by a ' ' (space)
