@@ -29,12 +29,11 @@ Description :   This program provides interfacing to control NEMA17, NEMA23 step
 #define BUFFER_SIZE 100
 
 const bool USE_DEFAULT_LIST = false;
-const char DEFAULT_MOTORS[] = "G2_MOTOR G2_MOTOR";    // TODO : Enter your desired default motor list here (up to 3 motors)
+const char DEFAULT_MOTORS[] = "NEMA17_MOTOR";         // TODO : Enter your desired default motor list here (up to 3 motors)
+//const char DEFAULT_MOTORS[] = "G2_MOTOR G2_MOTOR";  // TODO : Enter your desired default motor list here (up to 3 motors)
 
 // Overall controller class that is used to manage IO for each, possibly unique, individual axis motor
 struct Device myController;                     // (MUST be global to maintain motor axis state over lifetime of program) 
-
-// TESTING GITHUB FOR CODE UPDATING NOTIFICATIONS
 
 void setup(void) {}                               // Setup routine that is performed upon micro-controller startup
 void loop(void) {
@@ -98,7 +97,7 @@ void loop(void) {
         case 1:                                                         // HELP
           for (iter = 0; iter < NUM_HELP_LINES; ++iter) {        // Print each line
             ProgMemFcns::displayTableSequence((const char* const* const*)helpTable, iter + 1, 1);  // The help table is a single array - much different structure than normal args to this fct.
-            Serial.println();
+            Serial.print("\r\n");
           }
         break;
         default:
@@ -133,9 +132,10 @@ void loop(void) {
             default :                                                                         // Position (1), Velocity (2), or Acceleration (3)
             if (isSetter)
               myController.motors[axisIndex]->setPositionRate(atof(cmdProcess.getParameter(4)), (encodedSequence % 4) - 1);
-            else
+            else {
               Serial.print(myController.motors[axisIndex]->getPositionRate((encodedSequence % 4) - 1));
-              Serial.print("\r\n");
+              Serial.print("\r\n");     // Terminate the communication transmission
+            }
             break;
           }
         }

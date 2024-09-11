@@ -133,6 +133,37 @@ class Motor_Stepper : public Motor {
   public:
     Motor_Stepper(uint8_t correspondingMotor = 0) : Motor(correspondingMotor), relativeStep(0), relativeState(0), gearRatio(1) {     }
 
+    uint32_t computeRelativeStep(double desiredState) {
+      float N = abs(desiredState / 360);
+      float eqDesiredPos = desiredState + ((desiredState < 0) ? ceil(N) : -floor(N)) * 360;             //      0 <=   eqDesiredPos  <= 360
+      float currPos = this->getPosition();                                                              //      0 <=   currPos       <= 360
+      uint32_t stepsPerRev = this->gearRatio * this->driver.physicalDynamics->getTotalStates();         // # of steps to perform a complete rotation
+      uint32_t finalRelativeStep = 0.5 /* moves us to closest integer */ + (eqDesiredPos * stepsPerRev / 360);  // Only integer micro-steps can be performed. As a result, we need to choose the closest discrete step as is done here;
+      return finalRelativeStep;
+    }
+    
+    int32_t computeNumSteps(double desiredState) {
+      uint32_t finalRelativeStep = (int32_t)this->computeRelativeStep(desiredState);                           // Only integer micro-steps can be performed. As a result, we need to choose the closest discrete step as is done here
+      return this->computeNumSteps(finalRelativeStep);
+    }
+
+    // Overloaded function for computing # steps
+    int32_t computeNumSteps(uint32_t finalRelativeStep) {
+      int32_t stepsPerRev = this->gearRatio * (int32_t)this->driver.physicalDynamics->getTotalStates();       // # of steps to perform a complete rotation
+      uint32_t directPathNumSteps = abs((int32_t)finalRelativeStep - (int32_t)this->relativeStep);
+      
+      bool directPath = directPathNumSteps < (stepsPerRev / 2.0);
+      int32_t numSteps = finalRelativeStep - this->relativeStep;
+      if (!directPath) {
+        // numSteps = -(((finalRelativeStep < (int32_t)this->relativeStep) ? -stepsPerRev : stepsPerRev) - numSteps);    // Works excellently
+        numSteps = ((finalRelativeStep < (int32_t)this->relativeStep) ? stepsPerRev : -stepsPerRev) + numSteps;
+        //numSteps = stepsPerRev + ((finalRelativeStep < (int32_t)this->relativeStep) ? -numSteps : numSteps); //1 : -1) * abs(stepsPerRev - (int32_t)this->relativeStep + (int32_t)finalRelativeStep);
+      }
+      return numSteps;
+    }
+
+
+
     // ##### Polymorphism Methods #####
     virtual ~Motor_Stepper(void) override {
       // Cleanup here..
@@ -408,7 +439,6 @@ class Motor_Stepper : public Motor {
       int32_t prevSteps;
       int32_t currSteps;
 
-      //   Serial.print("PWM val : ");Serial.println(pwmVal);
       this->setDirection(direction);                                                                // Set direction of travel
       analogWrite(this->driver.motor.pinout[Enumerators::G2Pins[Enumerators::PWM]], pwmVal);        // Set motor speed (0 to 255)
 

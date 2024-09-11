@@ -27,6 +27,5 @@ uint8_t* Enumerators::g2_MotorPinouts[] = { Enumerators::g2_m1Pinout, Enumerator
 #endif
 
 bool Enumerators::validateMotor(const char *motorString) {//const char* processedCMD, uint8_t *endOfCMD, bool* isValid, const uint8_t SIZE) {
-  //  Serial.print("Motor : ");Serial.println(motorString);
   return (strcmp(motorString, "G2_MOTOR") == 0 || strcmp(motorString, "NEMA17_MOTOR") == 0 || strcmp(motorString, "NEMA23_MOTOR") == 0);
 }

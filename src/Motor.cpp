@@ -22,7 +22,6 @@ void Motor::setPositionRate(float desiredState, uint8_t derivative) {
     this->driver.physicalDynamics->setPositionRate((uint32_t)desiredState, derivative);
     // TODO: Make changes to the actual physical hardware. 'setPositionRate' only 
     // alters the parameter set desired state.
-
   }
 }
 
@@ -36,10 +35,6 @@ uint32_t Motor_Stepper::computeOverallStep(float rotorAngle) {
 float Motor_Stepper::getPosition(void) {
   return 360.0 * (this->relativeStep / (float)(this->gearRatio * this->driver.physicalDynamics->getTotalStates()));
 }
-
-
-
-
 
 #if NEMA17_SUPPORTED
 void Motor_Nema17::initializeDevice(uint8_t SIZE) {
@@ -61,46 +56,22 @@ void Motor_Nema17::initializeDevice(uint8_t SIZE) {
     this[i].tmcDriver->microsteps(this[i].driver.physicalDynamics->getMicroSteps());  // Set cumulative step size
     digitalWrite(this[i].driver.motor.pinout[Enumerators::NEMA17Pins[Enumerators::CS]], LOW);   // Set CS pin to LOW
 
-
     this[i].stepper.setMaxSpeed(this[i].driver.physicalDynamics->getPositionRate(1));       // Set stepper speed
     this[i].stepper.setAcceleration(this[i].driver.physicalDynamics->getPositionRate(2));   // Set stepper acceleration
   }
 }
 
-void Motor_Nema17::originSearch(void) {       
-  /*           
-  uint8_t constCount = 0;                                   // Counter of consecutive loops where the pulse count from the Motor ISR remains constant
-  int32_t prevSteps;
-
-  float initialVelocity = this->getPositionRate(1);         // Velocity in mm/s
-  this->setPositionRate(Motor_G2::originSearchSpeed, 1);    // Set velocity to origin search velocity
-  float pwmVal = this->computePWMVal();
-  this->setDirection(RETRACT);                                                              // Set direction of travel
-  analogWrite(this->driver.motor.pinout[Enumerators::G2Pins[Enumerators::PWM]], pwmVal);    // Set motor speed (0 to 255)
-
-  // Observe steps counter while motor is operating.
-  // Stop the motor when the pulses stop incrementing
-  while (constCount++ < 3) {
-    prevSteps = this->pullSteps(false);   // Observe the motor ISR steps counter for changes
-    delay(50);                            // allow time for changes to take effect
-    
-    if (abs(prevSteps - (int32_t)this->pullSteps(false)) > 2)
-      constCount = 0;
-  }
-  analogWrite(this->driver.motor.pinout[Enumerators::G2Pins[Enumerators::PWM]], 0);   // Motor reached origin. Turn it off.
-  this->redefineOrigin();
-  this->setPositionRate(initialVelocity, 1);            // Set the initial velocity
-  this->setPosition(Motor_G2::ORIGIN_OFFSET);           // Offset from hardware origin to prevent drift of position which occurs often near the limits
-  this->redefineOrigin();
-  */
+void Motor_Nema17::originSearch(void) {  
+  this->setPosition(0);   // No feedback is possible. Therefore, our only possible origin is the previously defined origin.
 }
 
-void Motor_Nema17::setPosition(float degrees) {
-  this->stepper.moveTo((long)this->gearRatio * this->driver.physicalDynamics->getTotalStates() * degrees / 360);    // Calc the #steps and set as target
-  this->stepper.runToPosition();                                                                // Move into position
-  this->relativeStep = this->stepper.currentPosition();
+void Motor_Nema17::setPosition(float desiredPositionDegrees) {
+  uint32_t finalRelativeStep = this->computeRelativeStep(desiredPositionDegrees);   // Compute the final stepper position from 0 to N steps (Output periodic with N steps)
+  int32_t numSteps = this->computeNumSteps(finalRelativeStep);                      // Compute the number of steps to move in the direction of the polarity of the value.
+  this->stepper.move((long)numSteps);                                           // Instruct motor driver of the desired steps to move.
+  this->stepper.runToPosition();                                                // Instruct motor driver to move NEMA17 motor to the desired position.
+  this->relativeStep = this->computeRelativeStep(desiredPositionDegrees);       // Store MotionControllerAPI position in order to maintain rotation from 0 to 360 degrees.
 }
-
 
 #endif
 
@@ -113,63 +84,17 @@ void Motor_Nema23::initializeDevice(uint8_t SIZE) {
   }
 }
 
-void Motor_Nema23::originSearch(void) {       
-  /*           
-  uint8_t constCount = 0;                                   // Counter of consecutive loops where the pulse count from the Motor ISR remains constant
-  int32_t prevSteps;
-
-  float initialVelocity = this->getPositionRate(1);         // Velocity in mm/s
-  this->setPositionRate(Motor_G2::originSearchSpeed, 1);    // Set velocity to origin search velocity
-  float pwmVal = this->computePWMVal();
-  this->setDirection(RETRACT);                                                              // Set direction of travel
-  analogWrite(this->driver.motor.pinout[Enumerators::G2Pins[Enumerators::PWM]], pwmVal);    // Set motor speed (0 to 255)
-
-  // Observe steps counter while motor is operating.
-  // Stop the motor when the pulses stop incrementing
-  while (constCount++ < 3) {
-    prevSteps = this->pullSteps(false);   // Observe the motor ISR steps counter for changes
-    delay(50);                            // allow time for changes to take effect
-    
-    if (abs(prevSteps - (int32_t)this->pullSteps(false)) > 2)
-      constCount = 0;
-  }
-  analogWrite(this->driver.motor.pinout[Enumerators::G2Pins[Enumerators::PWM]], 0);   // Motor reached origin. Turn it off.
-  this->redefineOrigin();
-  this->setPositionRate(initialVelocity, 1);            // Set the initial velocity
-  this->setPosition(Motor_G2::ORIGIN_OFFSET);           // Offset from hardware origin to prevent drift of position which occurs often near the limits
-  this->redefineOrigin();
-  */
+void Motor_Nema23::originSearch(void) {  
+  this->setPosition(0);   // No feedback is possible. Therefore, our only possible origin is the previously defined origin.
 }
 
 void Motor_Nema23::setPosition(float desiredState) {
-  uint8_t N = min(ceil(-desiredState / 360), floor((360 - desiredState) / 360));
-  float eqDesiredPos = desiredState + 360 * N;                                                  //      0 <=   eqDesiredPos  <= 360
-  float currPos = this->getPosition();                                                          //      0 <=   currPos       <= 360
-  bool directPath = abs(eqDesiredPos - currPos) <= 180;
-  float setPosition;
-  if (directPath)
-      setPosition = eqDesiredPos;
-  else
-      setPosition = eqDesiredPos + ((eqDesiredPos > currPos) ? -360 : 360);                 // Apply a 360 rotation to achieve an equivalent rotation but requiring less arc distance to rotate to the desired state
-
+  uint32_t finalRelativeStep = this->computeRelativeStep(desiredState);
+  int32_t numSteps = this->computeNumSteps(finalRelativeStep);
   
-  long stepsPerRev, finalRelativeStep, numSteps, currStep;
-  bool isNewThetaSmaller, isShortestPath, direction;
-
-  stepsPerRev = (long)(this->gearRatio * this->driver.physicalDynamics->getTotalStates());                      // # of steps to perform a complete rotation
-  finalRelativeStep = long(0.5 /* moves us to closest integer */ + eqDesiredPos * stepsPerRev / 360);   // Only integer micro-steps can be performed. As a result, we need to choose the closest discrete step as is done here
-  numSteps = abs(finalRelativeStep - (long)this->relativeStep);                                               // number of steps to take when stepping to the notation's, "shortest path"
+  digitalWrite(this->driver.motor.pinout[Enumerators::NEMA23Pins[Enumerators::DIR]], numSteps > 0);  // Set the direction to step
   
-
-  /*
-  isShortestPath = (2 * numSteps) < stepsPerRev;
-  if (!isShortestPath)
-      numSteps = stepsPerRev - numSteps;
-   */   
- // isNewThetaSmaller = eqDesiredPos < currPos;
-  direction = setPosition < currPos;    // 'setPosition' is within 180 degrees of the current position.
- // direction = ((!isNewThetaSmaller && isShortestPath) || (isNewThetaSmaller && !isShortestPath));
-  digitalWrite(this->driver.motor.pinout[Enumerators::NEMA23Pins[Enumerators::DIR]], direction);  // Set the direction to step
+  int32_t currStep = 0;
   numSteps = abs(numSteps);
   for (currStep = 0; currStep < numSteps; ++currStep) {
       digitalWrite(this->driver.motor.pinout[Enumerators::NEMA23Pins[Enumerators::PUL]], HIGH);
@@ -263,4 +188,3 @@ void Motor_G2::M2_ISR(void) {
 }
 
 #endif
-
