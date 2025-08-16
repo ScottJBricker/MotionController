@@ -1,6 +1,5 @@
 #include "ProgramMemoryStrings.h"
 
-
 // WARNING : This function is only valid for PROGRAM MEMORY stored strings. 
 // RAM strings will not perform properly here.
 void ProgMemFcns::displayProgramMemoryString(const char *programPtr) {
@@ -11,14 +10,13 @@ void ProgMemFcns::displayProgramMemoryString(const char *programPtr) {
 
 void ProgMemFcns::displayTableSequence(const char* const* const* sequenceTable, uint8_t tableSequenceArray, uint8_t sequenceSize) {
   if (!Serial)
-    return; // Invalid input
+    return;       // Invalid input
   
   // For command sequences, which are arrays of arrays of strings
   tableSequenceArray = tableSequenceArray - 1;  // convert to 0-based indexing
-  #if MICRO_CONTROLLER == TEENSY
+  #if defined(IS_TEENSY)
     // Retrieve the pointer to the selected sequence directly
     const char* const* selectedSequence = sequenceTable[tableSequenceArray];
-
     for (uint8_t iter = 0; iter < sequenceSize; ++iter) {
       Serial.print(selectedSequence[iter]);
       Serial.print(" ");
